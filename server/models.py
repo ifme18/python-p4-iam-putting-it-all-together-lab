@@ -1,3 +1,4 @@
+from sqlalchemy.orm import validates
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_serializer import SerializerMixin
 
@@ -5,9 +6,6 @@ from config import db, bcrypt
 
 class User(db.Model, SerializerMixin):
     __tablename__ = 'users'
-
-    serialize_rules = ('-recipes.user', '-_password_hash',)
-
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String, unique=True, nullable=False)
     _password_hash = db.Column(db.String)
@@ -15,6 +13,10 @@ class User(db.Model, SerializerMixin):
     bio = db.Column(db.String)
 
     recipes = db.relationship('Recipe', backref='user')
+
+    # Add these lines to control serialization
+    serialize_only = ('id', 'username', 'image_url', 'bio')
+    serialize_rules = ('-_password_hash',)  # Exclude password hash
 
     @hybrid_property
     def password_hash(self):
@@ -35,8 +37,9 @@ class User(db.Model, SerializerMixin):
 
 class Recipe(db.Model, SerializerMixin):
     __tablename__ = 'recipes'
+
     __table_args__ = (
-        db.CheckConstraint('length(instructions) >= 50'),
+        db.CheckConstraint('LENGTH(instructions) >= 50', name='instructions_length_check'),
     )
 
     id = db.Column(db.Integer, primary_key=True)
@@ -44,7 +47,7 @@ class Recipe(db.Model, SerializerMixin):
     instructions = db.Column(db.String, nullable=False)
     minutes_to_complete = db.Column(db.Integer)
 
-    user_id = db.Column(db.Integer(), db.ForeignKey('users.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
 
     def __repr__(self):
         return f'<Recipe {self.id}: {self.title}>'
